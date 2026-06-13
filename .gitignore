@@ -1,0 +1,6 @@
+# Root GitIgnore
+.DS_Store
+*.log
+Thumbs.db
+*.7z
+frontend/MajorProject.7z

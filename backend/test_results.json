@@ -1,0 +1,364 @@
+{
+  "timestamp": "2026-06-12T22:48:03.411306",
+  "tests": {
+    "single_request": {
+      "response_time": 2.32,
+      "success": true,
+      "error": null
+    },
+    "concurrent_2": {
+      "num_requests": 2,
+      "total_time": 1.3,
+      "successful": 2,
+      "failed": 0,
+      "success_rate": 100.0,
+      "response_times": {
+        "min": 1.18,
+        "max": 1.3,
+        "mean": 1.24,
+        "median": 1.24,
+        "stdev": 0.09
+      },
+      "throughput": {
+        "requests_per_second": 1.54,
+        "avg_response_time": 0.65
+      }
+    },
+    "concurrent_3": {
+      "num_requests": 3,
+      "total_time": 2.21,
+      "successful": 3,
+      "failed": 0,
+      "success_rate": 100.0,
+      "response_times": {
+        "min": 2.2,
+        "max": 2.21,
+        "mean": 2.21,
+        "median": 2.21,
+        "stdev": 0.01
+      },
+      "throughput": {
+        "requests_per_second": 1.35,
+        "avg_response_time": 0.74
+      }
+    },
+    "concurrent_5": {
+      "num_requests": 5,
+      "total_time": 2.69,
+      "successful": 5,
+      "failed": 0,
+      "success_rate": 100.0,
+      "response_times": {
+        "min": 2.57,
+        "max": 2.68,
+        "mean": 2.62,
+        "median": 2.58,
+        "stdev": 0.06
+      },
+      "throughput": {
+        "requests_per_second": 1.86,
+        "avg_response_time": 0.54
+      }
+    },
+    "concurrent_6": {
+      "num_requests": 6,
+      "total_time": 3.07,
+      "successful": 6,
+      "failed": 0,
+      "success_rate": 100.0,
+      "response_times": {
+        "min": 2.86,
+        "max": 3.07,
+        "mean": 2.99,
+        "median": 3.0,
+        "stdev": 0.09
+      },
+      "throughput": {
+        "requests_per_second": 1.95,
+        "avg_response_time": 0.51
+      }
+    },
+    "voice_variations": {
+      "af_bella": {
+        "response_time": 1.01,
+        "success": true,
+        "error": null
+      },
+      "am_adam": {
+        "response_time": 4.19,
+        "success": true,
+        "error": null
+      },
+      "bf_emma": {
+        "response_time": 1.26,
+        "success": true,
+        "error": null
+      },
+      "bm_george": {
+        "response_time": 4.33,
+        "success": true,
+        "error": null
+      }
+    },
+    "text_length_impact": {
+      "short": {
+        "text_length": 12,
+        "response_time": 0.42,
+        "success": true,
+        "error": null
+      },
+      "medium": {
+        "text_length": 113,
+        "response_time": 0.8,
+        "success": true,
+        "error": null
+      },
+      "long": {
+        "text_length": 308,
+        "response_time": 1.69,
+        "success": true,
+        "error": null
+      }
+    },
+    "speed_pitch_variations": {
+      "speed_0.5_pitch_0.5": {
+        "speed": 0.5,
+        "pitch": 0.5,
+        "response_time": 22.56,
+        "success": true,
+        "error": null
+      },
+      "speed_0.5_pitch_1.0": {
+        "speed": 0.5,
+        "pitch": 1.0,
+        "response_time": 1.52,
+        "success": true,
+        "error": null
+      },
+      "speed_0.5_pitch_1.5": {
+        "speed": 0.5,
+        "pitch": 1.5,
+        "response_time": 1.33,
+        "success": true,
+        "error": null
+      },
+      "speed_0.5_pitch_2.0": {
+        "speed": 0.5,
+        "pitch": 2.0,
+        "response_time": 1.45,
+        "success": true,
+        "error": null
+      },
+      "speed_1.0_pitch_0.5": {
+        "speed": 1.0,
+        "pitch": 0.5,
+        "response_time": 0.79,
+        "success": true,
+        "error": null
+      },
+      "speed_1.0_pitch_1.0": {
+        "speed": 1.0,
+        "pitch": 1.0,
+        "response_time": 0.81,
+        "success": true,
+        "error": null
+      },
+      "speed_1.0_pitch_1.5": {
+        "speed": 1.0,
+        "pitch": 1.5,
+        "response_time": 0.81,
+        "success": true,
+        "error": null
+      },
+      "speed_1.0_pitch_2.0": {
+        "speed": 1.0,
+        "pitch": 2.0,
+        "response_time": 0.86,
+        "success": true,
+        "error": null
+      },
+      "speed_1.5_pitch_0.5": {
+        "speed": 1.5,
+        "pitch": 0.5,
+        "response_time": 0.62,
+        "success": true,
+        "error": null
+      },
+      "speed_1.5_pitch_1.0": {
+        "speed": 1.5,
+        "pitch": 1.0,
+        "response_time": 0.7,
+        "success": true,
+        "error": null
+      },
+      "speed_1.5_pitch_1.5": {
+        "speed": 1.5,
+        "pitch": 1.5,
+        "response_time": 0.66,
+        "success": true,
+        "error": null
+      },
+      "speed_1.5_pitch_2.0": {
+        "speed": 1.5,
+        "pitch": 2.0,
+        "response_time": 0.68,
+        "success": true,
+        "error": null
+      },
+      "speed_2.0_pitch_0.5": {
+        "speed": 2.0,
+        "pitch": 0.5,
+        "response_time": 0.6,
+        "success": true,
+        "error": null
+      },
+      "speed_2.0_pitch_1.0": {
+        "speed": 2.0,
+        "pitch": 1.0,
+        "response_time": 0.63,
+        "success": true,
+        "error": null
+      },
+      "speed_2.0_pitch_1.5": {
+        "speed": 2.0,
+        "pitch": 1.5,
+        "response_time": 0.64,
+        "success": true,
+        "error": null
+      },
+      "speed_2.0_pitch_2.0": {
+        "speed": 2.0,
+        "pitch": 2.0,
+        "response_time": 0.64,
+        "success": true,
+        "error": null
+      }
+    },
+    "stress_test": [
+      {
+        "num_requests": 3,
+        "test_result": {
+          "num_requests": 3,
+          "total_time": 0.56,
+          "successful": 3,
+          "failed": 0,
+          "success_rate": 100.0,
+          "response_times": {
+            "min": 0.56,
+            "max": 0.56,
+            "mean": 0.56,
+            "median": 0.56,
+            "stdev": 0.0
+          },
+          "throughput": {
+            "requests_per_second": 5.35,
+            "avg_response_time": 0.19
+          }
+        },
+        "system_metrics_before": {
+          "cpu_percent": 0.0,
+          "memory_mb": 46.71,
+          "timestamp": "2026-06-12T22:49:08.433341"
+        },
+        "system_metrics_after": {
+          "cpu_percent": 0.0,
+          "memory_mb": 46.88,
+          "timestamp": "2026-06-12T22:49:09.095802"
+        }
+      },
+      {
+        "num_requests": 6,
+        "test_result": {
+          "num_requests": 6,
+          "total_time": 0.87,
+          "successful": 6,
+          "failed": 0,
+          "success_rate": 100.0,
+          "response_times": {
+            "min": 0.86,
+            "max": 0.87,
+            "mean": 0.87,
+            "median": 0.87,
+            "stdev": 0.0
+          },
+          "throughput": {
+            "requests_per_second": 6.91,
+            "avg_response_time": 0.14
+          }
+        },
+        "system_metrics_before": {
+          "cpu_percent": 0.0,
+          "memory_mb": 46.88,
+          "timestamp": "2026-06-12T22:49:09.196876"
+        },
+        "system_metrics_after": {
+          "cpu_percent": 0.0,
+          "memory_mb": 46.28,
+          "timestamp": "2026-06-12T22:49:10.167009"
+        }
+      },
+      {
+        "num_requests": 9,
+        "test_result": {
+          "num_requests": 9,
+          "total_time": 1.22,
+          "successful": 9,
+          "failed": 0,
+          "success_rate": 100.0,
+          "response_times": {
+            "min": 1.1,
+            "max": 1.22,
+            "mean": 1.14,
+            "median": 1.11,
+            "stdev": 0.06
+          },
+          "throughput": {
+            "requests_per_second": 7.35,
+            "avg_response_time": 0.14
+          }
+        },
+        "system_metrics_before": {
+          "cpu_percent": 0.0,
+          "memory_mb": 46.28,
+          "timestamp": "2026-06-12T22:49:10.267948"
+        },
+        "system_metrics_after": {
+          "cpu_percent": 0.0,
+          "memory_mb": 46.58,
+          "timestamp": "2026-06-12T22:49:11.594903"
+        }
+      },
+      {
+        "num_requests": 12,
+        "test_result": {
+          "num_requests": 12,
+          "total_time": 1.35,
+          "successful": 12,
+          "failed": 0,
+          "success_rate": 100.0,
+          "response_times": {
+            "min": 1.08,
+            "max": 1.35,
+            "mean": 1.24,
+            "median": 1.26,
+            "stdev": 0.11
+          },
+          "throughput": {
+            "requests_per_second": 8.88,
+            "avg_response_time": 0.11
+          }
+        },
+        "system_metrics_before": {
+          "cpu_percent": 0.0,
+          "memory_mb": 46.58,
+          "timestamp": "2026-06-12T22:49:11.695794"
+        },
+        "system_metrics_after": {
+          "cpu_percent": 0.0,
+          "memory_mb": 46.82,
+          "timestamp": "2026-06-12T22:49:13.148078"
+        }
+      }
+    ]
+  }
+}

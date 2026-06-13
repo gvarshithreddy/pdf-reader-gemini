@@ -1,0 +1,6 @@
+{
+  "name": "Neural PDF Reader",
+  "description": "An interactive PDF content reader and text-to-speech speaker that processes documents locally and pipes chunks to an audio scheduler for gapless audio streams with visual highlighted guides.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

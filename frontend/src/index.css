@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* Utility classes to hide scrollbars for high fidelity mobile control bars */
+.scrollbar-none {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
