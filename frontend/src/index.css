@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  }
+}
+
 /* Utility classes to hide scrollbars for high fidelity mobile control bars */
 .scrollbar-none {
   -ms-overflow-style: none; /* IE and Edge */
@@ -9,3 +23,73 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none; /* Chrome, Safari and Opera */
 }
+
+/* Speech Waveform Animations */
+@keyframes wave-grow {
+  0%, 100% {
+    transform: scaleY(0.2);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.wave-bar {
+  animation: wave-grow 1s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Glow animations for visual cues */
+@keyframes ambient-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px 2px rgba(245, 158, 11, 0.03);
+    border-color: rgba(245, 158, 11, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px 4px rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.25);
+  }
+}
+
+.pulse-glow {
+  animation: ambient-glow 4s ease-in-out infinite;
+}
+
+/* Custom premium glass styles */
+.glass-panel {
+  background: rgba(15, 15, 18, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: rgba(20, 20, 25, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.glass-card-hover:hover {
+  background: rgba(25, 25, 32, 0.6);
+  border-color: rgba(245, 158, 11, 0.2);
+  transform: translateY(-2px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Fade In animation helpers */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

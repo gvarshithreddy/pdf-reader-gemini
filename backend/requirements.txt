@@ -5,13 +5,10 @@ huggingface-hub
 pydub
 espeakng-loader
 phonemizer-fork
-pyside6
 munch
 setuptools
 librosa
 hf_xet
-EbookLib
-beautifulsoup4
 fastapi
 uvicorn[standard]
 aiohttp

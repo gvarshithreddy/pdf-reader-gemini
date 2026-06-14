@@ -42,7 +42,7 @@ export default function App() {
   const [modalInput, setModalInput] = useState<string>(serverConfig.ip || '192.168.1.5:8000');
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [verifyError, setVerifyError] = useState<string>('');
-  const [showConfigModal, setShowConfigModal] = useState<boolean>(!serverConfig.isValidated);
+  const [showConfigModal, setShowConfigModal] = useState<boolean>(false); // No initial blocking modal: settings are inline on landing page
 
   // Initialize TTS Core Playback Hook
   const {
@@ -72,13 +72,15 @@ export default function App() {
 
     // Handle instant offline demo/sandbox validation
     if (cleanIp.toLowerCase() === 'mock') {
-      setTimeout(() => {
-        setIsVerifying(false);
-        setServerConfig({ ip: 'mock', isValidated: true });
-        localStorage.setItem('tts-backend-ip', 'mock');
-        setShowConfigModal(false);
-      }, 800);
-      return;
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          setIsVerifying(false);
+          setServerConfig({ ip: 'mock', isValidated: true });
+          localStorage.setItem('tts-backend-ip', 'mock');
+          setShowConfigModal(false);
+          resolve();
+        }, 800);
+      });
     }
 
     try {
@@ -125,7 +127,7 @@ export default function App() {
     resetEngine();
     setServerConfig({ ip: '', isValidated: false });
     localStorage.removeItem('tts-backend-ip');
-    setShowConfigModal(true);
+    // Don't auto open config modal on landing page since it has inline config
   };
 
   return (
@@ -134,15 +136,15 @@ export default function App() {
     } antialiased`}>
       
       {/* Brutalist Elegant Top Navigation Bar */}
-      <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-white/70 dark:bg-zinc-950/70 border-b border-zinc-200/60 dark:border-zinc-900 px-6 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-[#0a0a0c]/85 border-b border-zinc-900/60 px-6 py-3 flex items-center justify-between text-zinc-100">
         
-        <div className="flex items-center space-x-2.5">
-          <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center text-zinc-950 shadow-md">
-            <span className="font-mono font-bold text-sm">NP</span>
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-zinc-950 shadow-md">
+            <span className="font-mono font-bold text-sm tracking-wider">NP</span>
           </div>
           <div>
-            <h1 className="text-sm font-bold uppercase tracking-wider font-mono">Neural PDF Reader</h1>
-            <p className="text-[9px] text-zinc-400 tracking-wide leading-none select-none">WebAudio Gapless Streamer</p>
+            <h2 className="text-xs font-bold uppercase tracking-widest font-mono text-zinc-100 leading-none">Neural PDF</h2>
+            <p className="text-[8px] text-zinc-500 font-mono tracking-wide mt-1 leading-none select-none">WebAudio Gapless Streamer</p>
           </div>
         </div>
 
@@ -150,34 +152,36 @@ export default function App() {
         <div className="flex items-center space-x-3">
           
           {serverConfig.isValidated && (
-            <div className="hidden sm:inline-flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-500 text-[10px] font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+            <div className="hidden sm:inline-flex items-center space-x-2 bg-emerald-500/5 border border-emerald-500/15 px-2.5 py-1 rounded-full text-emerald-400 text-[9px] font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
               <span>Node Active: {serverConfig.ip === 'mock' ? 'MOCK_DEMO' : serverConfig.ip}</span>
             </div>
           )}
 
           {/* Configuration Setup Button */}
-          <button
-            id="btn-edit-config"
-            onClick={() => {
-              setModalInput(serverConfig.ip || '192.168.1.5:8000');
-              setVerifyError('');
-              setShowConfigModal(true);
-            }}
-            className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
-            title="Setup TTS connection"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+          {chunks.length > 0 && (
+            <button
+              id="btn-edit-config"
+              onClick={() => {
+                setModalInput(serverConfig.ip || '192.168.1.5:8000');
+                setVerifyError('');
+                setShowConfigModal(true);
+              }}
+              className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors"
+              title="Setup TTS connection"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Theme switcher */}
           <button
             id="btn-toggle-theme"
             onClick={() => setIsDark(!isDark)}
-            className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+            className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors"
             title="Toggle theme color"
           >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
 
         </div>
@@ -187,6 +191,11 @@ export default function App() {
       <main className="flex-1 flex flex-col w-full relative">
         <DocumentReader
           serverIp={serverConfig.ip}
+          isValidated={serverConfig.isValidated}
+          onConnectServer={handleVerifyServer}
+          onDisconnectServer={handleDisconnect}
+          isVerifying={isVerifying}
+          verifyError={verifyError}
           chunks={chunks}
           currentChunkIndex={currentChunkIndex}
           isPlaying={isPlaying}
@@ -195,6 +204,7 @@ export default function App() {
           setChunks={setChunks}
           setCurrentChunkIndex={setCurrentChunkIndex}
           togglePlayPause={togglePlayPause}
+          resetEngine={resetEngine}
         />
       </main>
 

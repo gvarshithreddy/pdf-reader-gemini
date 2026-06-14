@@ -5,9 +5,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as pdfjs from 'pdfjs-dist';
-import { Upload, FileText, CheckCircle2, AlertCircle, Sparkles, Navigation } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertCircle, Sparkles, Navigation, ArrowLeft } from 'lucide-react';
 import { PageTextMap, TtsChunk, TtsOptions } from '../types';
 import PdfPageRenderer from './PdfPageRenderer';
+import LandingPage from './LandingPage';
 
 // Config worker source using jsdelivr CDN matching imported version
 const pdfjsVersion = pdfjs.version || '6.0.227';
@@ -15,6 +16,11 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@$
 
 interface DocumentReaderProps {
   serverIp: string;
+  isValidated: boolean;
+  onConnectServer: (ip: string) => Promise<void>;
+  onDisconnectServer: () => void;
+  isVerifying: boolean;
+  verifyError: string;
   chunks: TtsChunk[];
   currentChunkIndex: number;
   isPlaying: boolean;
@@ -23,6 +29,7 @@ interface DocumentReaderProps {
   setChunks: (chunks: TtsChunk[]) => void;
   setCurrentChunkIndex: (index: number) => void;
   togglePlayPause: () => void;
+  resetEngine: () => void;
 }
 
 // Custom text chunker splitting pages cleanly by sentences/punctuations (max ~200 characters)
@@ -73,6 +80,11 @@ function splitTextIntoChunks(text: string, pageIndex: number): Array<{ text: str
 
 export default function DocumentReader({
   serverIp,
+  isValidated,
+  onConnectServer,
+  onDisconnectServer,
+  isVerifying,
+  verifyError,
   chunks,
   currentChunkIndex,
   isPlaying,
@@ -81,6 +93,7 @@ export default function DocumentReader({
   setChunks,
   setCurrentChunkIndex,
   togglePlayPause,
+  resetEngine,
 }: DocumentReaderProps) {
   const [pdfDocument, setPdfDocument] = useState<any>(null);
   const [numPages, setNumPages] = useState<number>(0);
@@ -309,171 +322,127 @@ export default function DocumentReader({
     <div className="flex-1 w-full flex flex-col relative">
       
       {numPages === 0 ? (
-        // Clean layout dashboard before PDF document upload
-        <div className="flex-1 max-w-2xl mx-auto w-full flex flex-col justify-center py-12 px-4">
-          
-          <div className="text-center mb-8">
-            <div className="inline-flex p-3 rounded-2xl bg-amber-400/10 border border-amber-400/20 text-amber-500 mb-4 animate-pulse">
-              <Sparkles className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-zinc-100">
-              Transform PDFs to Speech
-            </h2>
-            <p className="text-xs text-neutral-500 dark:text-zinc-400 font-mono mt-1 w-full max-w-sm mx-auto">
-              A high performance engine utilizing Web Audio scheduling for gapless playback alignment
-            </p>
-          </div>
-
-          {/* Interactive Drag/Drop Zone */}
-          <div
-            onDragEnter={handleDrag}
-            onDragOver={handleDrag}
-            onDragLeave={handleDrag}
-            onDrop={handleDrop}
-            className={`cursor-pointer group flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-10 text-center transition-all duration-300 min-h-[250px] relative overflow-hidden bg-white/40 dark:bg-zinc-900/10 ${
-              dragActive
-                ? 'border-amber-400 bg-amber-400/5'
-                : 'border-zinc-300 dark:border-zinc-800 hover:border-amber-400/60 dark:hover:border-amber-400/40'
-            }`}
-          >
-            <input
-              id="file-upload-input"
-              type="file"
-              accept=".pdf"
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              onChange={handleFileInputChange}
-              disabled={isParsing}
-            />
-
-            {isParsing ? (
-              <div className="flex flex-col items-center space-y-4">
-                <div className="relative w-12 h-12 flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full border-4 border-amber-400/20 border-t-amber-500 animate-spin" />
-                  <FileText className="w-5 h-5 text-amber-500" />
-                </div>
-                <div className="flex flex-col space-y-1">
-                  <span className="text-sm font-semibold text-neutral-800 dark:text-zinc-200">
-                    Extracting Plain Text
-                  </span>
-                  <p className="text-[11px] font-mono text-zinc-500">
-                    {parseProgress}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <div className="p-4 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <Upload className="w-8 h-8" />
-                </div>
-                <h3 className="text-sm font-semibold text-neutral-800 dark:text-zinc-200">
-                  Upload file or drag here
-                </h3>
-                <span className="text-[11px] text-zinc-400 font-mono mt-1">
-                  Supports .pdf files with plain text formats
-                </span>
-                <span className="inline-block mt-4 text-xs bg-zinc-150 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-250 transition-all font-medium">
-                  Select Locally
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Validation Fail Indicator */}
-          {errorStatus && (
-            <div className="mt-4 flex items-start gap-3 p-3.5 rounded-xl border border-rose-500/10 bg-rose-500/5 text-rose-500 text-xs font-medium font-mono animate-fade-in animate-duration-300">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{errorStatus}</span>
-            </div>
-          )}
-
-          {/* Connection diagnostics notice */}
-          <div className="mt-8 p-3 rounded-xl bg-zinc-100 dark:bg-zinc-900/60 border border-zinc-200/40 dark:border-zinc-800/40 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
-            <span>Core Node Backend:</span>
-            <span className="text-emerald-500 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> {serverIp}
-            </span>
-          </div>
-
-        </div>
+        <LandingPage
+          serverIp={serverIp}
+          isValidated={isValidated}
+          onConnectServer={onConnectServer}
+          onDisconnectServer={onDisconnectServer}
+          isVerifying={isVerifying}
+          verifyError={verifyError}
+          onPdfSelected={handlePdfFile}
+          isParsing={isParsing}
+          parseProgress={parseProgress}
+        />
       ) : (
         // Loaded reader workspace dashboard
-        <div className="flex-1 w-full flex relative px-2 pr-12 pb-24 md:px-8 md:pr-16 max-w-4xl mx-auto">
+        <div className="flex-1 w-full flex relative px-4 pr-12 pb-32 md:px-8 md:pr-16 max-w-5xl mx-auto animate-fade-in">
           
           {/* Main vertical document rendering viewport */}
-          <div ref={scrollContainerRef} className="flex-1 w-full py-6 pr-2">
+          <div ref={scrollContainerRef} className="flex-1 w-full py-8 pr-2">
             
             {/* Header metadata label bar */}
-            <div className="mb-6 flex items-center justify-between border-b border-zinc-200/60 dark:border-zinc-800 pb-3">
-              <div className="flex items-center space-x-2 shrink-1 overflow-hidden">
-                <FileText className="w-4 h-4 text-amber-500 shrink-0" />
-                <span className="text-xs font-semibold text-neutral-800 dark:text-zinc-200 truncate" title={fileName}>
-                  {fileName}
+            <div className="mb-8 flex items-center justify-between border-b border-zinc-900 pb-4">
+              <div className="flex items-center shrink-1 overflow-hidden">
+                <button
+                  id="btn-back-to-library"
+                  onClick={() => {
+                    setPdfDocument(null);
+                    setNumPages(0);
+                    setFileName('');
+                    resetEngine();
+                  }}
+                  className="flex items-center gap-2 text-xs font-mono font-semibold text-zinc-400 hover:text-white transition-all py-1.5 px-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 shadow-sm cursor-pointer mr-4 select-none"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Library
+                </button>
+                <div className="flex items-center space-x-2 truncate">
+                  <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-xs font-bold text-zinc-200 truncate" title={fileName}>
+                    {fileName}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-[10px] font-mono uppercase bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1 text-zinc-400 tracking-wide select-none">
+                  {numPages} {numPages === 1 ? 'Page' : 'Pages'}
                 </span>
               </div>
-              <span className="text-[10px] font-mono uppercase bg-neutral-100 dark:bg-zinc-900 border border-neutral-200 dark:border-zinc-800 rounded-lg px-2 py-0.5 text-zinc-500 tracking-wide">
-                {numPages} {numPages === 1 ? 'Page' : 'Pages'}
-              </span>
             </div>
 
             {/* Structured Page loop elements */}
-            {Array.from({ length: numPages }).map((_, index) => (
-              <PdfPageRenderer
-                key={index}
-                pdfDocument={pdfDocument}
-                pageIndex={index}
-                activeChunk={activeChunk}
-                onTextItemClick={handleTextItemClick}
-                onPageTextExtracted={onPageTextExtracted}
-                pageTextMap={pageTextMaps.get(index) || null}
-              />
-            ))}
+            <div className="space-y-8">
+              {Array.from({ length: numPages }).map((_, index) => (
+                <PdfPageRenderer
+                  key={index}
+                  pdfDocument={pdfDocument}
+                  pageIndex={index}
+                  activeChunk={activeChunk}
+                  onTextItemClick={handleTextItemClick}
+                  onPageTextExtracted={onPageTextExtracted}
+                  pageTextMap={pageTextMaps.get(index) || null}
+                />
+              ))}
+            </div>
           </div>
 
-          {/* Custom touch-friendly Fast-Scroller layout container */}
-          <div className="fixed right-2 top-20 bottom-24 w-10 z-30 flex items-center justify-center select-none">
-            
-            {/* Extended invisible touch rail wrapper giving the 40px large hit target */}
-            <div
-              ref={trackRef}
-              className="w-10 h-full flex items-center justify-center cursor-pointer relative"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerLeave={handlePointerUp}
-              touch-action="none"
-              style={{ touchAction: 'none' }}
-              title="Fast Vertical Drag Slider"
-            >
-              {/* Visible scroll bar core */}
-              <div className="w-1 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors h-full rounded-full relative">
-                
-                {/* Grabber thumb indicating active page position */}
-                <div
-                  className="absolute w-6 h-6 -left-2.5 rounded-full bg-amber-400 border-2 border-zinc-950 dark:border-zinc-100 shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing hover:scale-110 active:scale-100 transition-transform"
-                  style={{
-                    top: `${(activePageIndex / (numPages - 1 || 1)) * 100}%`,
-                    transform: 'translateY(-50%)',
-                  }}
-                >
-                  <Navigation className="w-2.5 h-2.5 text-zinc-950 rotate-90" />
-                </div>
-
-                {/* Floating Page X active bubble visualizer popup overlay */}
-                {isDraggingSlider && (
+          {/* Elegant Sticky Navigation Sidebar */}
+          <div className="w-16 shrink-0 relative hidden sm:block">
+            <div className="sticky top-32 h-[calc(100vh-16rem)] flex items-center justify-center z-30 select-none">
+              
+              {/* Invisible Hit-Area Track for Pointer Events */}
+              <div
+                ref={trackRef}
+                className="w-16 h-full flex items-center justify-center cursor-pointer relative group"
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+                style={{ touchAction: 'none' }}
+                title="Fast Document Navigator"
+              >
+                {/* Visual Glass Track */}
+                <div className="w-1.5 h-full rounded-full bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 relative transition-all duration-300 group-hover:bg-zinc-800/60 group-hover:w-2">
+                  
+                  {/* Glowing Thumb Pill */}
                   <div
-                    className="absolute right-8 p-2 rounded-xl backdrop-blur-md bg-zinc-950/90 text-white font-mono text-center shadow-xl border border-zinc-800 text-xs min-w-[70px] -translate-y-1/2 pointer-events-none animate-fade-in"
+                    className="absolute w-3.5 h-10 -left-[4px] rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)] transition-all duration-200 cursor-grab active:cursor-grabbing flex items-center justify-center"
                     style={{
-                      top: `${(activePageIndex / (numPages - 1 || 1)) * 100}%`,
+                      top: `${(activePageIndex / (Math.max(1, numPages - 1))) * 100}%`,
+                      transform: 'translateY(-50%)',
                     }}
                   >
-                    <div className="text-[8px] uppercase text-zinc-400 tracking-wider">Viewing</div>
-                    <span className="font-bold text-amber-400 text-sm">{activePageIndex + 1}</span> / {numPages}
+                    {/* Inner texture lines */}
+                    <div className="flex flex-col gap-[2px] opacity-60">
+                      <div className="w-1.5 h-[1px] bg-zinc-950 rounded-full" />
+                      <div className="w-1.5 h-[1px] bg-zinc-950 rounded-full" />
+                      <div className="w-1.5 h-[1px] bg-zinc-950 rounded-full" />
+                    </div>
                   </div>
-                )}
 
+                  {/* Elegant Floating Page Indicator (Visible on Hover/Drag) */}
+                  <div
+                    className={`absolute right-6 -translate-y-1/2 flex items-center transition-all duration-300 pointer-events-none ${
+                      isDraggingSlider ? 'opacity-100 translate-x-0' : 'opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
+                    }`}
+                    style={{
+                      top: `${(activePageIndex / (Math.max(1, numPages - 1))) * 100}%`,
+                    }}
+                  >
+                    <div className="bg-zinc-950/90 backdrop-blur-md border border-zinc-800 shadow-xl rounded-lg px-3 py-1.5 flex items-baseline gap-1.5">
+                      <span className="text-amber-400 font-mono font-bold text-sm">
+                        {activePageIndex + 1}
+                      </span>
+                      <span className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest">
+                        / {numPages}
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
               </div>
-            </div>
 
+            </div>
           </div>
 
         </div>
