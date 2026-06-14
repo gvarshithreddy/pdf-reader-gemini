@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Upload, Server, Sparkles, Terminal, AlertCircle, CheckCircle2, Volume2, Eye, Cpu, BookOpen, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload, Terminal, AlertCircle, CheckCircle2, ArrowRight, Wifi, WifiOff, FileText, Cpu, AudioLines, ScanText, Volume2 } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 
 interface LandingPageProps {
   serverIp: string;
@@ -12,6 +13,168 @@ interface LandingPageProps {
   isParsing: boolean;
   parseProgress: string;
 }
+
+/* ────────────────────────────────────────────
+   Cursor-following spotlight on a dot grid
+   ──────────────────────────────────────────── */
+function SpotlightGrid() {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const springX = useSpring(mouseX, { stiffness: 60, damping: 20 });
+  const springY = useSpring(mouseY, { stiffness: 60, damping: 20 });
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      mouseX.set(e.clientX);
+      mouseY.set(e.clientY);
+    };
+    window.addEventListener('mousemove', handler);
+    return () => window.removeEventListener('mousemove', handler);
+  }, []);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #c4b5fd 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+        }}
+      />
+      <motion.div
+        className="absolute w-[500px] h-[500px] rounded-full"
+        style={{
+          x: useTransform(springX, (v) => v - 250),
+          y: useTransform(springY, (v) => v - 250),
+          background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)',
+        }}
+      />
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Full-screen Document Loading Overlay
+   with progress bar and cycling messages
+   ──────────────────────────────────────────── */
+function DocumentLoader({ parseProgress }: { parseProgress: string }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  // Parse "page X / Y" from parseProgress to derive a real percentage
+  const pageMatch = parseProgress.match(/page\s+(\d+)\s*\/\s*(\d+)/i);
+  const currentPage = pageMatch ? parseInt(pageMatch[1], 10) : 0;
+  const totalPages = pageMatch ? parseInt(pageMatch[2], 10) : 0;
+
+  // Text parsing = 0-80%, audio caching = 80-100%
+  const isAudioPhase = parseProgress.includes('audio') || parseProgress.includes('Audio');
+  const isFinishing = parseProgress.includes('launching') || parseProgress.includes('Finalizing');
+  const textProgress = totalPages > 0 ? Math.round((currentPage / totalPages) * 80) : 0;
+  const progressPercent = isFinishing ? 100 : isAudioPhase ? 90 : textProgress;
+
+  // Cycle elapsed time for the status messages
+  useEffect(() => {
+    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Status pipeline — messages cycle as work progresses
+  const statusSteps = [
+    { icon: <FileText className="w-4 h-4" />, label: 'Reading document binary', done: textProgress > 0 || isAudioPhase },
+    { icon: <ScanText className="w-4 h-4" />, label: 'Extracting text layer', done: textProgress > 20 || isAudioPhase },
+    { icon: <Cpu className="w-4 h-4" />, label: 'Building character maps', done: textProgress > 60 || isAudioPhase },
+    { icon: <AudioLines className="w-4 h-4" />, label: 'Preparing speech chunks', done: textProgress > 90 || isAudioPhase },
+    { icon: <Volume2 className="w-4 h-4" />, label: 'Pre-caching audio buffers', done: isFinishing },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#09090b]/95 backdrop-blur-xl"
+    >
+      <div className="w-full max-w-md px-8 flex flex-col items-center">
+
+        {/* Animated spinner ring */}
+        <div className="relative w-20 h-20 mb-8">
+          <motion.div
+            className="absolute inset-0 rounded-full border-[3px] border-slate-800"
+          />
+          <motion.div
+            className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-violet-500 border-r-violet-500/30"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-lg font-black font-mono text-violet-400">
+              {progressPercent > 0 ? `${progressPercent}%` : '...'}
+            </span>
+          </div>
+        </div>
+
+        {/* Title */}
+        <h2 className="text-xl font-black text-white tracking-tight mb-2">
+          Preparing your document
+        </h2>
+        <p className="text-xs text-slate-500 font-mono mb-8 text-center">
+          {parseProgress || 'Initializing parser...'}
+        </p>
+
+        {/* Progress bar */}
+        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-8">
+          <motion.div
+            className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500"
+            initial={{ width: '2%' }}
+            animate={{ width: progressPercent > 0 ? `${progressPercent}%` : '5%' }}
+            transition={{ type: 'spring', stiffness: 50, damping: 15 }}
+          />
+        </div>
+
+        {/* Status steps list */}
+        <div className="w-full space-y-3">
+          {statusSteps.map((step, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.15, duration: 0.3 }}
+              className="flex items-center gap-3"
+            >
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-500 ${
+                step.done
+                  ? 'bg-violet-500/10 text-violet-400'
+                  : 'bg-slate-800/50 text-slate-600'
+              }`}>
+                {step.done ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : step.icon}
+              </div>
+              <span className={`text-xs font-mono transition-colors duration-500 ${
+                step.done ? 'text-slate-300' : 'text-slate-600'
+              }`}>
+                {step.label}
+              </span>
+              {step.done && (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-[9px] font-mono text-emerald-500/60 ml-auto"
+                >
+                  done
+                </motion.span>
+              )}
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Elapsed time */}
+        <p className="text-[10px] font-mono text-slate-700 mt-8">
+          {elapsed}s elapsed
+          {totalPages > 0 && <span className="text-slate-600"> · {totalPages} pages detected</span>}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
 
 export default function LandingPage({
   serverIp,
@@ -31,324 +194,327 @@ export default function LandingPage({
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files?.[0]) {
       const file = e.dataTransfer.files[0];
       if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
         onPdfSelected(file);
       } else {
-        setLocalError('Unsupported file type. Please drag a valid PDF document.');
+        setLocalError('Only PDF files are supported.');
       }
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      onPdfSelected(e.target.files[0]);
-    }
+    if (e.target.files?.[0]) onPdfSelected(e.target.files[0]);
   };
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError('');
-    if (!ipInput.trim()) {
-      setLocalError('Please enter a valid IP address and port.');
-      return;
-    }
+    if (!ipInput.trim()) { setLocalError('Enter a valid address.'); return; }
     await onConnectServer(ipInput);
   };
 
   return (
-    <div className="flex-1 w-full flex flex-col justify-between py-12 px-4 md:px-8 max-w-6xl mx-auto animate-fade-in">
-      
-      {/* Hero Header Area */}
-      <header className="text-center max-w-3xl mx-auto mb-12 mt-6">
-        
-        {/* Animated Sonic Waveform Pill */}
-        <div className="inline-flex items-center gap-3 px-3 py-1.5 rounded-full bg-amber-400/5 border border-amber-400/15 mb-6">
-          <div className="flex items-center gap-0.5 h-3.5 w-6 overflow-hidden">
-            <span className="w-0.5 h-full bg-amber-400/40 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }} />
-            <span className="w-0.5 h-full bg-amber-400 rounded-full wave-bar" style={{ animationDuration: '0.8s', animationDelay: '0.2s' }} />
-            <span className="w-0.5 h-full bg-amber-500 rounded-full wave-bar" style={{ animationDuration: '1.2s', animationDelay: '0s' }} />
-            <span className="w-0.5 h-full bg-amber-400 rounded-full wave-bar" style={{ animationDuration: '0.9s', animationDelay: '0.4s' }} />
-            <span className="w-0.5 h-full bg-amber-400/40 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }} />
-          </div>
-          <span className="text-[10px] uppercase font-mono tracking-wider font-semibold text-amber-400/90">
-            Neural Auditory Interface
+    <div className="flex-1 w-full flex flex-col min-h-0 overflow-y-auto scrollbar-none relative">
+      <SpotlightGrid />
+
+      {/* ═══════════════════════════════════
+          FULL-SCREEN DOCUMENT LOADER
+          Overlays when isParsing is true
+          ═══════════════════════════════════ */}
+      <AnimatePresence>
+        {isParsing && <DocumentLoader parseProgress={parseProgress} />}
+      </AnimatePresence>
+
+      {/* ═══════════════════════════════════════════
+          HERO — Massive typographic statement
+          ═══════════════════════════════════════════ */}
+      <section className="relative flex flex-col items-center justify-center px-6 pt-20 pb-16 md:pt-28 md:pb-24">
+
+        {/* Eyebrow badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-violet-500/15 bg-violet-500/5 backdrop-blur-sm mb-10"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-400" />
           </span>
-        </div>
-
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white leading-none font-display">
-          Hear your books. <br/>
-          <span className="bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 bg-clip-text text-transparent">
-            Read with your ears.
+          <span className="text-[11px] uppercase font-mono tracking-[0.2em] font-bold text-violet-300/90">
+            PDF → Speech Engine
           </span>
-        </h1>
-        
-        <p className="mt-4 text-sm md:text-base text-zinc-400 font-sans max-w-xl mx-auto leading-relaxed">
-          Experience next-generation auditory reading. Neural PDF Reader parses your documents and streams high-fidelity synthetic voices with precise word-level synchronization.
-        </p>
+        </motion.div>
 
-      </header>
+        {/* Hero text */}
+        <motion.h1
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center leading-[0.88] tracking-[-0.04em] select-none relative z-10 mb-8"
+        >
+          <span
+            className="block font-black text-white"
+            style={{ fontSize: 'clamp(3.5rem, 13vw, 11rem)' }}
+          >
+            Read with
+          </span>
+          <span
+            className="block font-black bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent"
+            style={{ fontSize: 'clamp(3.5rem, 13vw, 11rem)' }}
+          >
+            your ears.
+          </span>
+        </motion.h1>
 
-      {/* Main Portals Grid */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch mb-16">
-        
-        {/* Portal 1: Server Config (LHS) */}
-        <div className="lg:col-span-5 flex flex-col justify-between p-6 rounded-2xl glass-panel pulse-glow relative overflow-hidden">
-          
-          {/* Subtle grid lines background overlay */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
-
-          <div className="relative z-10 space-y-5">
-            
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-400/10 text-amber-500 flex items-center justify-center border border-amber-400/20">
-                <Server className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-mono text-xs uppercase tracking-wider font-bold text-white">Speech Synthesis Engine</h3>
-                <p className="text-[10px] text-zinc-400 leading-none mt-1">Configure your speech synthesis node</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-              Connect to a local or remote neural speech synthesis node. Don't have a server configured? Enter <code className="text-amber-400 px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800 font-mono">mock</code> to experience elegant, offline ambient speech synthesizers.
-            </p>
-
-            <form onSubmit={handleConnect} className="space-y-4">
-              <div>
-                <label htmlFor="landing-server-ip" className="text-[10px] uppercase font-mono tracking-wider font-bold text-zinc-400 block mb-2">
-                  Node IP & Port
-                </label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3.5 text-xs text-zinc-500 font-mono">http://</span>
-                  <input
-                    id="landing-server-ip"
-                    type="text"
-                    spellCheck={false}
-                    disabled={isVerifying || isParsing}
-                    placeholder="192.168.1.5:8000"
-                    value={ipInput}
-                    onChange={(e) => setIpInput(e.target.value)}
-                    className="w-full bg-zinc-950/80 border border-zinc-800 rounded-xl py-2.5 pl-16 pr-4 text-xs font-mono font-bold text-white placeholder-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Status Indicator inside the box */}
-              {isValidated ? (
-                <div className="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-[11px] text-emerald-400 flex items-start gap-2.5 font-mono">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Engine Connected:</span> <br/>
-                    <span className="text-zinc-400 text-[10px]">
-                      {serverIp === 'mock' ? 'MOCK_DEMO (Offline Ambient Waves)' : `http://${serverIp}`}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/10 text-[10px] text-amber-500/90 flex items-start gap-2.5 font-mono leading-relaxed">
-                  <Terminal className="w-4 h-4 shrink-0 mt-0.5" />
-                  <div>
-                    Verify connection to enable synthesized playback features.
-                  </div>
-                </div>
-              )}
-
-              {/* Errors */}
-              {(verifyError || localError) && (
-                <div className="p-3 bg-rose-500/5 border border-rose-500/15 text-[11px] text-rose-400 rounded-xl leading-relaxed font-mono flex items-start gap-2">
-                  <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-rose-400" />
-                  <span>{verifyError || localError}</span>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                {isValidated && (
-                  <button
-                    id="btn-disconnect-landing"
-                    type="button"
-                    onClick={onDisconnectServer}
-                    className="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 py-2.5 rounded-xl text-xs font-semibold hover:text-white transition-all cursor-pointer"
-                  >
-                    Disconnect
-                  </button>
-                )}
-                <button
-                  id="btn-connect-landing"
-                  type="submit"
-                  disabled={isVerifying || isParsing}
-                  className={`flex-2 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                    isVerifying
-                      ? 'bg-zinc-800 text-zinc-500'
-                      : 'bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold active:scale-[0.98]'
-                  } ${isValidated ? 'w-full' : 'flex-1'}`}
-                >
-                  {isVerifying ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-t-2 border-l-2 border-zinc-950 animate-spin rounded-full inline-block" />
-                      <span>Verifying Node...</span>
-                    </>
-                  ) : isValidated ? (
-                    <span>Test Connection Again</span>
-                  ) : (
-                    <span>Connect & Validate Node</span>
-                  )}
-                </button>
-              </div>
-
-            </form>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-zinc-900/60 text-[10px] font-mono text-zinc-500 flex items-center justify-between">
-            <span>Core Protocol: REST/PCM</span>
-            <span>API v1.0.0</span>
-          </div>
-
-        </div>
-
-        {/* Portal 2: PDF Dropzone (RHS) */}
-        <div className="lg:col-span-7 flex flex-col justify-between p-6 rounded-2xl glass-panel relative overflow-hidden">
-          
-          <div className="relative z-10 space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-400/10 text-amber-500 flex items-center justify-center border border-amber-400/20">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-mono text-xs uppercase tracking-wider font-bold text-white">Document Library</h3>
-                <p className="text-[10px] text-zinc-400 leading-none mt-1">Upload a document to begin parsing</p>
-              </div>
-            </div>
-
-            {/* Dropzone Container */}
-            <div
-              onDragEnter={handleDrag}
-              onDragOver={handleDrag}
-              onDragLeave={handleDrag}
-              onDrop={handleDrop}
-              className={`cursor-pointer group flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 min-h-[220px] relative overflow-hidden bg-zinc-950/20 ${
-                dragActive
-                  ? 'border-amber-400 bg-amber-400/5'
-                  : 'border-zinc-800 hover:border-amber-400/40'
-              }`}
-            >
-              <input
-                id="landing-file-upload"
-                type="file"
-                accept=".pdf"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                onChange={handleFileInput}
-                disabled={isParsing}
-              />
-
-              {isParsing ? (
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="relative w-12 h-12 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-full border-4 border-amber-400/20 border-t-amber-500 animate-spin" />
-                    <Upload className="w-5 h-5 text-amber-500 animate-bounce" />
-                  </div>
-                  <div className="flex flex-col space-y-1">
-                    <span className="text-xs font-bold text-white">Extracting Plain Text</span>
-                    <p className="text-[10px] font-mono text-zinc-500">
-                      {parseProgress || 'Processing PDF structure...'}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 text-zinc-500 mb-4 group-hover:scale-105 group-hover:border-amber-400/30 group-hover:text-amber-400 transition-all duration-300">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-xs font-bold text-zinc-300">
-                    Drop your PDF here, or click to browse
-                  </h4>
-                  <p className="text-[10px] text-zinc-500 font-mono mt-1">
-                    Supports text-based standard PDF files
-                  </p>
-                  <div className="mt-4 px-3.5 py-1.5 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all flex items-center gap-2 font-semibold shadow-sm">
-                    Select File <ArrowRight className="w-3 h-3" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Quick-start alert for user validation */}
-            {!isValidated && (
-              <div className="p-3 bg-amber-400/5 border border-amber-400/10 rounded-xl flex items-start gap-2.5 text-[10px] font-mono text-amber-500/90">
-                <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold uppercase tracking-wider">Demo Sandbox:</span> You can drag a PDF first and reader pages will load. However, to hear audio playback, connect to a Node or select the offline "mock" mode on the left.
-                </div>
-              </div>
-            )}
-
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-zinc-900/60 text-[10px] font-mono text-zinc-500 flex items-center justify-between">
-            <span>Parser Engine: PDF.js</span>
-            <span>Max Size: 100MB</span>
-          </div>
-
-        </div>
-
+        {/* Subtitle */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="text-base md:text-lg text-slate-400 text-center max-w-md leading-relaxed"
+        >
+          Upload any PDF. Connect a speech synthesis server.
+          Every word highlights as it's spoken aloud.
+        </motion.p>
       </section>
 
-      {/* Capability/Feature Matrix Section */}
-      <footer className="border-t border-zinc-900/80 pt-10">
-        
-        <h4 className="text-center text-[10px] font-mono uppercase tracking-widest text-zinc-500 mb-8">
-          Auditory System Capabilities
-        </h4>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          <div className="p-5 rounded-xl glass-card glass-card-hover group">
-            <div className="w-8 h-8 rounded-lg bg-amber-400/5 text-amber-400 flex items-center justify-center border border-amber-400/10 mb-4 group-hover:bg-amber-400/10 group-hover:text-amber-300 transition-colors">
-              <Volume2 className="w-4 h-4" />
+      {/* ═══════════════════════════════════════════
+          ACTION GRID — Two panels, clean and direct
+          ═══════════════════════════════════════════ */}
+      <motion.section
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-6 md:px-10 max-w-4xl mx-auto w-full mb-24 relative z-10"
+      >
+
+        {/* ─── Panel: Connect Engine ─── */}
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-900/40 backdrop-blur-sm p-6 md:p-7 flex flex-col">
+
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 rounded-lg bg-slate-800/80 flex items-center justify-center border border-slate-700/50">
+              {isValidated
+                ? <Wifi className="w-4 h-4 text-emerald-400" />
+                : <WifiOff className="w-4 h-4 text-slate-500" />
+              }
             </div>
-            <h5 className="font-display text-xs font-bold text-white">Gapless WebAudio Queue</h5>
-            <p className="mt-2 text-xs text-zinc-400 leading-relaxed font-sans">
-              Combines PCM stream prefetching with tight audio schedule overlap crossfading, preventing latency gaps between synthesized blocks.
-            </p>
+            <div>
+              <h2 className="text-sm font-bold text-white tracking-tight">Speech Engine</h2>
+              <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                {isValidated ? 'Connected' : 'Not connected'}
+              </p>
+            </div>
           </div>
 
-          <div className="p-5 rounded-xl glass-card glass-card-hover group">
-            <div className="w-8 h-8 rounded-lg bg-amber-400/5 text-amber-400 flex items-center justify-center border border-amber-400/10 mb-4 group-hover:bg-amber-400/10 group-hover:text-amber-300 transition-colors">
-              <Eye className="w-4 h-4" />
+          <form onSubmit={handleConnect} className="space-y-3 flex-1 flex flex-col">
+            <div>
+              <label htmlFor="landing-server-ip" className="text-[10px] uppercase font-mono tracking-[0.15em] font-bold text-slate-500 block mb-2">
+                Server Address
+              </label>
+              <div className="relative flex items-center">
+                <span className="absolute left-3 text-[11px] text-slate-600 font-mono">http://</span>
+                <input
+                  id="landing-server-ip"
+                  type="text"
+                  spellCheck={false}
+                  disabled={isVerifying || isParsing}
+                  placeholder="192.168.1.5:8000"
+                  value={ipInput}
+                  onChange={(e) => setIpInput(e.target.value)}
+                  className="w-full bg-slate-950/60 border border-slate-700/50 rounded-xl py-2.5 pl-[4rem] pr-4 text-xs font-mono font-bold text-white placeholder-slate-700 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all"
+                />
+              </div>
             </div>
-            <h5 className="font-display text-xs font-bold text-white">Visual Alignment Tracking</h5>
-            <p className="mt-2 text-xs text-zinc-400 leading-relaxed font-sans">
-              Maps characters back to coordinates within the PDF viewport, highlighting spoken syllables in real-time without obstructing legibility.
-            </p>
-          </div>
 
-          <div className="p-5 rounded-xl glass-card glass-card-hover group">
-            <div className="w-8 h-8 rounded-lg bg-amber-400/5 text-amber-400 flex items-center justify-center border border-amber-400/10 mb-4 group-hover:bg-amber-400/10 group-hover:text-amber-300 transition-colors">
-              <Cpu className="w-4 h-4" />
+            <AnimatePresence mode="wait">
+              {isValidated ? (
+                <motion.div
+                  key="ok"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/15 text-[11px] text-emerald-400 flex items-center gap-2 font-mono overflow-hidden"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>{serverIp === 'mock' ? 'Mock mode (offline)' : `http://${serverIp}`}</span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="hint"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/30 text-[10px] text-slate-500 flex items-center gap-2 font-mono overflow-hidden"
+                >
+                  <Terminal className="w-3.5 h-3.5 shrink-0 opacity-60" />
+                  <span>Type <strong className="text-violet-400/80">mock</strong> for offline demo</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {(verifyError || localError) && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="p-3 bg-rose-500/5 border border-rose-500/15 text-[11px] text-rose-400 rounded-lg font-mono flex items-center gap-2"
+                >
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{verifyError || localError}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="flex gap-2 mt-auto pt-1">
+              {isValidated && (
+                <button
+                  id="btn-disconnect-landing"
+                  type="button"
+                  onClick={onDisconnectServer}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  Disconnect
+                </button>
+              )}
+              <motion.button
+                id="btn-connect-landing"
+                type="submit"
+                disabled={isVerifying || isParsing}
+                whileTap={{ scale: 0.97 }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  isVerifying
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    : 'bg-violet-500 hover:bg-violet-400 text-white shadow-lg shadow-violet-500/20'
+                }`}
+              >
+                {isVerifying ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-t-2 border-l-2 border-white animate-spin rounded-full" />
+                    Verifying...
+                  </>
+                ) : isValidated ? 'Reconnect' : 'Connect'}
+              </motion.button>
             </div>
-            <h5 className="font-display text-xs font-bold text-white">Multi-Voice Modulation</h5>
-            <p className="mt-2 text-xs text-zinc-400 leading-relaxed font-sans">
-              Interact with custom model speech profiles including British and American genders, with adjustable speed ratios and fine-tuned pitch vectors.
-            </p>
-          </div>
-
+          </form>
         </div>
 
-      </footer>
+        {/* ─── Panel: Upload PDF ─── */}
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-900/40 backdrop-blur-sm p-6 md:p-7 flex flex-col">
 
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 rounded-lg bg-slate-800/80 flex items-center justify-center border border-slate-700/50">
+              <Upload className="w-4 h-4 text-slate-500" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white tracking-tight">Open Document</h2>
+              <p className="text-[10px] text-slate-500 font-mono mt-0.5">PDF up to 100 MB</p>
+            </div>
+          </div>
+
+          {/* Dropzone */}
+          <motion.div
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+            animate={{
+              scale: dragActive ? 1.015 : 1,
+              borderColor: dragActive ? 'rgba(139,92,246,0.5)' : 'rgba(51,65,85,0.5)',
+            }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            className="flex-1 relative cursor-pointer flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 text-center min-h-[180px] group"
+          >
+            <input
+              id="landing-file-upload"
+              type="file"
+              accept=".pdf"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              onChange={handleFileInput}
+              disabled={isParsing}
+            />
+
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 rounded-xl bg-slate-800/60 border border-slate-700/50 flex items-center justify-center mb-4 group-hover:border-violet-500/30 group-hover:text-violet-400 text-slate-600 transition-colors">
+                <Upload className="w-5 h-5" />
+              </div>
+              <p className="text-sm font-bold text-slate-300 mb-1">Drop a PDF here</p>
+              <p className="text-[10px] text-slate-600 font-mono">or click to browse</p>
+              <div className="mt-4 px-4 py-2 rounded-lg text-[11px] bg-slate-800/40 border border-slate-700/40 text-slate-400 hover:text-violet-300 hover:border-violet-500/20 transition-all flex items-center gap-1.5 font-bold relative z-10">
+                Choose File <ArrowRight className="w-3 h-3" />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+      </motion.section>
+
+
+      {/* ═══════════════════════════════════════════
+          PIPELINE — Three steps, honestly sequential
+          ═══════════════════════════════════════════ */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: '-40px' }}
+        transition={{ duration: 0.5 }}
+        className="px-6 md:px-10 max-w-4xl mx-auto w-full pb-16 relative z-10"
+      >
+        <div className="border-t border-slate-800/60 pt-10 mb-8">
+          <p className="text-[10px] font-mono uppercase tracking-[0.25em] text-slate-600 text-center">
+            How it works
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            {
+              step: '01',
+              title: 'Parse',
+              desc: 'PDF.js extracts every text item with character-level coordinates. Each page becomes a structured map.',
+            },
+            {
+              step: '02',
+              title: 'Speak',
+              desc: 'Text chunks stream to a neural TTS engine. Audio queues with crossfading eliminate silence between blocks.',
+            },
+            {
+              step: '03',
+              title: 'Track',
+              desc: 'Characters map back to PDF coordinates live. The spoken phrase highlights as you listen.',
+            },
+          ].map((item, i) => (
+            <motion.div
+              key={item.step}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="p-5 rounded-xl border border-slate-800/40 bg-slate-900/20 hover:border-slate-700/60 transition-colors group"
+            >
+              <span className="text-[10px] font-mono text-violet-400/60 font-bold">{item.step}</span>
+              <h3 className="text-xl font-black text-white tracking-tight mt-1 mb-2">
+                {item.title}
+              </h3>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                {item.desc}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </motion.section>
     </div>
   );
 }

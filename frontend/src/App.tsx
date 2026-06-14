@@ -57,6 +57,7 @@ export default function App() {
     updateOptions,
     setChunks,
     resetEngine,
+    prefetchInitialChunks,
   } = usePdfTtsEngine(serverConfig.isValidated ? serverConfig.ip : null);
 
   // 3. Connect/Verify TTS server health
@@ -205,6 +206,7 @@ export default function App() {
           setCurrentChunkIndex={setCurrentChunkIndex}
           togglePlayPause={togglePlayPause}
           resetEngine={resetEngine}
+          prefetchInitialChunks={prefetchInitialChunks}
         />
       </main>
 

@@ -241,6 +241,7 @@ export function usePdfTtsEngine(serverIp: string | null) {
 
   const setChunks = useCallback((newChunks: TtsChunk[]) => {
     stopAllAudio();
+    chunksRef.current = newChunks;
     setChunksState(newChunks);
     setIndexSync(0);
     prefetchCacheRef.current.clear();
@@ -381,6 +382,77 @@ export function usePdfTtsEngine(serverIp: string | null) {
     nextStartTimeRef.current = 0;
   }, [stopAllAudio]);
 
+  // Pre-fetch initial chunks and resolve when at least `count` are cached.
+  // Used during the loading screen to warm up audio before showing the reader.
+  const prefetchInitialChunks = useCallback(async (count: number = 3): Promise<void> => {
+    if (!serverIp || chunksRef.current.length === 0) return;
+
+    const target = Math.min(count, chunksRef.current.length);
+    const activeOpts = optionsRef.current;
+    const fetchPromises: Promise<void>[] = [];
+
+    // Kick off fetches for the first `target` chunks
+    for (let idx = 0; idx < target; idx++) {
+      if (prefetchCacheRef.current.has(idx) || activeFetchesRef.current.has(idx)) continue;
+
+      const chunkText = chunksRef.current[idx].text;
+      activeFetchesRef.current.add(idx);
+
+      const fetchPromise = (async () => {
+        try {
+          const cleanIp = serverIp.trim().replace(/^https?:\/\//, '');
+          let decoded: AudioBuffer;
+
+          if (cleanIp.toLowerCase() === 'mock') {
+            const ctx = getAudioContext();
+            const words = chunkText.split(/\s+/).length;
+            const speedFactor = activeOpts.speed || 1.0;
+            const pitchFactor = activeOpts.pitch || 1.0;
+            const duration = Math.max(0.4, Math.min(4.0, words * (0.26 / speedFactor)));
+            const sampleRate = ctx.sampleRate;
+            decoded = ctx.createBuffer(1, sampleRate * duration, sampleRate);
+            const data = decoded.getChannelData(0);
+            const f0 = 150 * pitchFactor;
+            for (let i = 0; i < data.length; i++) {
+              const t = i / sampleRate;
+              const fm = Math.sin(2 * Math.PI * 5 * t) * 10;
+              data[i] = (Math.sin(2 * Math.PI * (f0 + fm) * t) + Math.sin(2 * Math.PI * (f0 * 1.5 + fm) * t) * 0.3) * 0.12;
+              if (t < 0.04) data[i] *= (t / 0.04);
+              else if (t > duration - 0.06) data[i] *= (Math.max(0, duration - t) / 0.06);
+            }
+          } else {
+            const response = await fetch(`http://${cleanIp}/synthesize`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: chunkText,
+                voice: activeOpts.voice,
+                speed: activeOpts.speed,
+                pitch: activeOpts.pitch,
+                sample_rate: 24000,
+              }),
+            });
+            if (!response.ok) throw new Error(`TTS HTTP error: ${response.status}`);
+            const arrayBuffer = await response.arrayBuffer();
+            decoded = await decodeAudio(arrayBuffer, getAudioContext());
+          }
+          prefetchCacheRef.current.set(idx, decoded);
+        } catch (err) {
+          console.warn(`Initial prefetch failed for chunk ${idx}:`, err);
+        } finally {
+          activeFetchesRef.current.delete(idx);
+        }
+      })();
+      
+      fetchPromises.push(fetchPromise);
+    }
+
+    // Wait for all initial fetches to complete (or fail)
+    if (fetchPromises.length > 0) {
+      await Promise.all(fetchPromises);
+    }
+  }, [serverIp, getAudioContext]);
+
   // Clean context on completely unmount
   useEffect(() => {
     return () => {
@@ -404,5 +476,6 @@ export function usePdfTtsEngine(serverIp: string | null) {
     updateOptions,
     setChunks,
     resetEngine,
+    prefetchInitialChunks,
   };
 }

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist';
 import { PageTextMap, TtsChunk } from '../types';
 
@@ -21,7 +21,7 @@ interface PdfPageRendererProps {
 const pdfjsVersion = pdfjs.version || '6.0.227';
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
 
-export default function PdfPageRenderer({
+const PdfPageRenderer = React.memo(function PdfPageRenderer({
   pdfDocument,
   pageIndex,
   activeChunk,
@@ -251,4 +251,26 @@ export default function PdfPageRenderer({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  if (prevProps.pdfDocument !== nextProps.pdfDocument) return false;
+  if (prevProps.pageIndex !== nextProps.pageIndex) return false;
+  if (prevProps.pageTextMap !== nextProps.pageTextMap) return false;
+  
+  const prevChunk = prevProps.activeChunk;
+  const nextChunk = nextProps.activeChunk;
+  
+  if (!prevChunk && !nextChunk) return true;
+  
+  const wasActive = prevChunk?.pageIndex === prevProps.pageIndex;
+  const isActive = nextChunk?.pageIndex === nextProps.pageIndex;
+  
+  // If it was active and is still active (but a different chunk), it must re-render
+  if (wasActive && isActive && prevChunk?.id !== nextChunk?.id) return false;
+  
+  // If it changed from active to inactive, or inactive to active, it must re-render
+  if (wasActive !== isActive) return false;
+  
+  return true;
+});
+
+export default PdfPageRenderer;
